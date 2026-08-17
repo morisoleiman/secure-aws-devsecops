@@ -1,0 +1,62 @@
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Staging image tag/SHA to promote'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          allowed-account-ids: ${{ vars.AWS_ACCOUNT_ID }}
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
+      - name: Resolve ECR registry
+        id: ecr
+        run: echo "registry=$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com" >> "$GITHUB_OUTPUT"
+      - name: Login to ECR
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: aws ecr get-login-password --region "${{ vars.AWS_REGION }}" | docker login --username AWS --password-stdin "$REGISTRY"
+      - name: Pull the exact staging artifact
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          SOURCE_REPOSITORY: ${{ vars.STAGING_ECR_REPOSITORY }}
+        run: docker pull "$REGISTRY/$SOURCE_REPOSITORY:${{ inputs.image_tag }}"
+      - name: Scan promoted image
+        uses: aquasecurity/trivy-action@v0.33.1
+        with:
+          image-ref: ${{ steps.ecr.outputs.registry }}/${{ vars.STAGING_ECR_REPOSITORY }}:${{ inputs.image_tag }}
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+      - name: Retag for production
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          SOURCE_REPOSITORY: ${{ vars.STAGING_ECR_REPOSITORY }}
+          TARGET_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+        run: |
+          docker tag "$REGISTRY/$SOURCE_REPOSITORY:${{ inputs.image_tag }}" "$REGISTRY/$TARGET_REPOSITORY:${{ inputs.image_tag }}"
+          docker push "$REGISTRY/$TARGET_REPOSITORY:${{ inputs.image_tag }}"
