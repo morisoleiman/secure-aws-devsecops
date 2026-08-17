@@ -41,7 +41,7 @@ jobs:
           REPOSITORY: ${{ vars.ECR_REPOSITORY }}
         run: docker build --tag "$REGISTRY/$REPOSITORY:${GITHUB_SHA}" .
       - name: Scan image before push
-        uses: aquasecurity/trivy-action@v0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ steps.ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}
           format: table

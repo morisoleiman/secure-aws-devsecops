@@ -45,7 +45,7 @@ jobs:
           SOURCE_REPOSITORY: ${{ vars.STAGING_ECR_REPOSITORY }}
         run: docker pull "$REGISTRY/$SOURCE_REPOSITORY:${{ inputs.image_tag }}"
       - name: Scan promoted image
-        uses: aquasecurity/trivy-action@v0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ steps.ecr.outputs.registry }}/${{ vars.STAGING_ECR_REPOSITORY }}:${{ inputs.image_tag }}
           format: table
