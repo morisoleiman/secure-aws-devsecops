@@ -1,4 +1,4 @@
-FROM python:3.13-slim
+FROM python:3.14-slim
 
 RUN useradd --create-home --uid 10001 appuser
 WORKDIR /app
