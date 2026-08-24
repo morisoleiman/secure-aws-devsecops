@@ -72,7 +72,7 @@ jobs:
         working-directory: infrastructure/terraform
         run: terraform validate
       - name: Checkov
-        uses: bridgecrewio/checkov-action@v12.1347.0
+        uses: bridgecrewio/checkov-action@v12.3119.0
         with:
           directory: infrastructure/terraform
           framework: terraform
